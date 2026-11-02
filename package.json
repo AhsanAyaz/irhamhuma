@@ -17,8 +17,14 @@
     "@angular/forms": "^22.2.0",
     "@angular/platform-browser": "^22.2.0",
     "@angular/router": "^22.2.0",
+    "@google/genai": "^2.31.0",
+    "@tailwindcss/postcss": "^4.3.3",
+    "postcss": "^8.5.31",
     "rxjs": "~7.8.0",
-    "tslib": "^2.3.0"
+    "tailwindcss": "^4.3.3",
+    "tslib": "^2.3.0",
+    "zod": "^4.6.7",
+    "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
     "@angular/build": "^22.2.4",
