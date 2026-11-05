@@ -21,6 +21,171 @@ function formatWhatsAppAddress(phone: string): string {
   return `whatsapp:${cleaned}`;
 }
 
+function getMetaCredentials(config: CareConfig): {
+  phoneNumberId: string;
+  accessToken: string;
+  verifyToken: string;
+  isConfigured: boolean;
+} {
+  const phoneNumberId = (
+    config.metaPhoneNumberId ||
+    process.env.META_PHONE_NUMBER_ID ||
+    ''
+  ).trim();
+  const accessToken = (
+    config.metaAccessToken ||
+    process.env.META_ACCESS_TOKEN ||
+    ''
+  ).trim();
+  const verifyToken = (
+    config.metaVerifyToken ||
+    process.env.META_VERIFY_TOKEN ||
+    'irhamhuma_meta_verify'
+  ).trim();
+  const isConfigured =
+    Boolean(phoneNumberId && accessToken) &&
+    (config.whatsappProvider === 'META_CLOUD_API' ||
+      Boolean(config.metaPhoneNumberId));
+  return { phoneNumberId, accessToken, verifyToken, isConfigured };
+}
+
+/**
+ * Sends a WhatsApp message directly via Meta's official WhatsApp Cloud API (graph.facebook.com/v21.0)
+ * with $0 Twilio markup and no $20 minimum top-up requirement.
+ */
+export async function sendMetaCloudWhatsAppMessage(
+  toPhone: string,
+  bodyText: string,
+  config: CareConfig,
+  options?: {
+    interactiveButtons?: Array<{ id: string; title: string }>;
+    audioUrl?: string;
+  }
+): Promise<{ sent: boolean; messageId?: string; error?: string }> {
+  const { phoneNumberId, accessToken } = getMetaCredentials(config);
+  if (!phoneNumberId || !accessToken) {
+    return {
+      sent: false,
+      error: 'Meta WhatsApp Phone Number ID or Access Token is not configured.',
+    };
+  }
+
+  const recipient = toPhone
+    .replace(/^whatsapp:/i, '')
+    .replace(/[^\d]/g, '')
+    .trim();
+  const endpoint = `https://graph.facebook.com/v21.0/${encodeURIComponent(phoneNumberId)}/messages`;
+
+  let messageId = '';
+
+  // 1. Try sending with native 1-tap WhatsApp Interactive Reply Buttons if requested
+  if (options?.interactiveButtons && options.interactiveButtons.length > 0) {
+    try {
+      const interactiveRes = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: recipient,
+          type: 'interactive',
+          interactive: {
+            type: 'button',
+            body: {
+              text: bodyText.slice(0, 1024),
+            },
+            action: {
+              buttons: options.interactiveButtons.slice(0, 3).map((b) => ({
+                type: 'reply',
+                reply: {
+                  id: b.id,
+                  title: b.title.slice(0, 20),
+                },
+              })),
+            },
+          },
+        }),
+      });
+      if (interactiveRes.ok) {
+        const data = (await interactiveRes.json()) as {
+          messages?: Array<{ id: string }>;
+        };
+        messageId = data.messages?.[0]?.id || 'meta_interactive';
+      }
+    } catch {
+      // Fall back to standard text message below
+    }
+  }
+
+  // 2. Standard text message (if interactive was not used or failed)
+  if (!messageId) {
+    try {
+      const textRes = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: recipient,
+          type: 'text',
+          text: {
+            preview_url: false,
+            body: bodyText,
+          },
+        }),
+      });
+      const data = (await textRes.json()) as {
+        messages?: Array<{ id: string }>;
+        error?: { message?: string };
+      };
+      if (!textRes.ok) {
+        return {
+          sent: false,
+          error: data.error?.message || `Meta API HTTP ${textRes.status}`,
+        };
+      }
+      messageId = data.messages?.[0]?.id || 'meta_text';
+    } catch (err: unknown) {
+      return {
+        sent: false,
+        error: err instanceof Error ? err.message : 'Meta API request failed',
+      };
+    }
+  }
+
+  // 3. Optional Urdu MP3 audio attachment
+  if (options?.audioUrl && config.enableWhatsAppAudioNote) {
+    try {
+      await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: recipient,
+          type: 'audio',
+          audio: {
+            link: options.audioUrl,
+          },
+        }),
+      });
+    } catch {
+      // Non-blocking
+    }
+  }
+
+  return { sent: true, messageId };
+}
+
 /**
  * Tier 1 (Minute 0):
  * Sends a WhatsApp message + Native Urdu MP3 Voice Note attachment to the primary caregiver via Twilio WhatsApp.
@@ -30,11 +195,7 @@ export async function sendTier1WhatsAppToCaregiver(
   task: Record<string, unknown>,
   config: CareConfig
 ): Promise<{ sent: boolean; messageSid?: string; to: string; details: string }> {
-  const client = getTwilioClient();
   const baseUrl = getBaseRouterUrl();
-  const fromWhatsApp = formatWhatsAppAddress(
-    config.twilioWhatsappNumber || process.env.TWILIO_WHATSAPP_NUMBER || process.env.TWILIO_PHONE_NUMBER || ''
-  );
   const toWhatsApp = formatWhatsAppAddress(config.caregiverPhone);
 
   const title = String(task.title || 'دوائی');
@@ -52,10 +213,55 @@ export async function sendTier1WhatsAppToCaregiver(
     `📋 *${title}*\n` +
     `${instructions ? `_${instructions}_\n\n` : '\n'}` +
     `🔊 ${urduNative}\n\n` +
-    `براہ کرم جواب میں صرف ایک نمبر لکھ کر بھیجیں:\n` +
+    `براہ کرم بٹن دبائیں یا جواب میں نمبر لکھ کر بھیجیں:\n` +
     `*1* — ✅ جی، ${config.patientTitle} نے لے لی (Done)\n` +
     `*2* — ⏳ ${config.snoozeDurationMinutes} منٹ بعد یاد دلائیں (Snooze)\n` +
-    `*3* — 🚨 ${config.patientTitle} منع کر رہے ہیں، ${config.escalationName} کو کال کریں`;
+    `*3* — 🚨 ${config.patientTitle} منع کر رہے ہیں، ${config.escalationName} کو اطلاع دیں`;
+
+  const metaCreds = getMetaCredentials(config);
+  if (metaCreds.isConfigured || config.whatsappProvider === 'META_CLOUD_API') {
+    const metaRes = await sendMetaCloudWhatsAppMessage(
+      config.caregiverPhone,
+      bodyText,
+      config,
+      {
+        interactiveButtons: [
+          { id: '1', title: `✅ 1: لے لی (Done)` },
+          { id: '2', title: `⏳ 2: ${config.snoozeDurationMinutes}m Snooze` },
+          { id: '3', title: `🚨 3: مدد / اطلاع` },
+        ],
+        audioUrl: config.enableWhatsAppAudioNote ? audioMediaUrl : undefined,
+      }
+    );
+
+    if (metaRes.sent) {
+      await admin.firestore().doc(`dailyTasks/${taskId}`).set(
+        {
+          lastWhatsAppSentTo: config.caregiverPhone.replace(/\s+/g, ''),
+          lastWhatsAppSid: metaRes.messageId || 'meta_cloud',
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+      return {
+        sent: true,
+        messageSid: metaRes.messageId,
+        to: config.caregiverPhone,
+        details: `Meta Cloud WhatsApp (Interactive Buttons) sent to ${config.caregiverTitle} (${config.caregiverPhone})`,
+      };
+    }
+
+    return {
+      sent: false,
+      to: config.caregiverPhone,
+      details: `Meta WhatsApp error: ${metaRes.error}`,
+    };
+  }
+
+  const client = getTwilioClient();
+  const fromWhatsApp = formatWhatsAppAddress(
+    config.twilioWhatsappNumber || process.env.TWILIO_WHATSAPP_NUMBER || process.env.TWILIO_PHONE_NUMBER || ''
+  );
 
   try {
     // 1. Send the written summary message
@@ -424,4 +630,70 @@ export async function handleIncomingWhatsAppWebhook(
       `*3* — 🚨 ${config.escalationName} کو کال کریں`
   );
   return twiml.toString();
+}
+
+/**
+ * Handles Meta WhatsApp Cloud API GET webhook verification challenge
+ */
+export async function verifyMetaWhatsAppWebhookGet(
+  query: Record<string, unknown>
+): Promise<{ status: number; body: string }> {
+  const mode = String(query['hub.mode'] || '');
+  const token = String(query['hub.verify_token'] || '').trim();
+  const challenge = String(query['hub.challenge'] || '');
+  const config = await getCareConfig();
+  const { verifyToken } = getMetaCredentials(config);
+
+  if (mode === 'subscribe' && token && token === verifyToken) {
+    return { status: 200, body: challenge };
+  }
+  return { status: 403, body: 'Forbidden: Verify token mismatch' };
+}
+
+/**
+ * Handles incoming Meta WhatsApp Cloud API POST webhook events
+ * (both 1-tap Interactive Button replies and plain text replies like "1", "2", "3").
+ */
+export async function handleMetaWhatsAppWebhookPost(
+  payload: Record<string, unknown>
+): Promise<void> {
+  const entries = (payload.entry as Array<Record<string, unknown>>) || [];
+  for (const entry of entries) {
+    const changes = (entry.changes as Array<Record<string, unknown>>) || [];
+    for (const change of changes) {
+      const value = (change.value as Record<string, unknown>) || {};
+      const messages = (value.messages as Array<Record<string, unknown>>) || [];
+      for (const msg of messages) {
+        const fromDigits = String(msg.from || '').replace(/[^\d]/g, '');
+        if (!fromDigits) continue;
+        const fromE164 = `+${fromDigits}`;
+
+        const interactive = msg.interactive as
+          | { button_reply?: { id?: string; title?: string } }
+          | undefined;
+        const buttonObj = msg.button as { payload?: string; text?: string } | undefined;
+        const textObj = msg.text as { body?: string } | undefined;
+
+        const replyBody =
+          interactive?.button_reply?.id ||
+          buttonObj?.payload ||
+          textObj?.body ||
+          '';
+        if (!replyBody) continue;
+
+        const twimlXml = await handleIncomingWhatsAppWebhook({
+          From: fromE164,
+          Body: replyBody,
+        });
+
+        // Extract plain text inside <Message>...</Message> from the TwiML response and send back via Meta Cloud API
+        const match = twimlXml.match(/<Message>([\s\S]*?)<\/Message>/);
+        const replyText = match?.[1]?.trim();
+        if (replyText) {
+          const config = await getCareConfig();
+          await sendMetaCloudWhatsAppMessage(fromE164, replyText, config);
+        }
+      }
+    }
+  }
 }

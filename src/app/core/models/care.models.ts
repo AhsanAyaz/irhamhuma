@@ -56,6 +56,11 @@ export const EscalationChannelSchema = z
   .catch('TELEGRAM');
 export type EscalationChannel = z.infer<typeof EscalationChannelSchema>;
 
+export const WhatsAppProviderSchema = z
+  .enum(['META_CLOUD_API', 'TWILIO'])
+  .catch('TWILIO');
+export type WhatsAppProvider = z.infer<typeof WhatsAppProviderSchema>;
+
 export const CareConfigSchema = z.object({
   appName: z.string().default('Irhamhuma'),
   patientTitle: z.string().min(1).default('Patient'),
@@ -82,7 +87,11 @@ export const CareConfigSchema = z.object({
   escalationChannel: EscalationChannelSchema.default('TELEGRAM'),
   tier2NudgeAfterMinutes: z.number().int().min(1).max(30).default(3),
   tier3TwilioFallbackAfterMinutes: z.number().int().min(1).max(60).default(5),
+  whatsappProvider: WhatsAppProviderSchema.default('TWILIO'),
   twilioWhatsappNumber: z.string().default(''),
+  metaPhoneNumberId: z.string().optional(),
+  metaAccessToken: z.string().optional(),
+  metaVerifyToken: z.string().default('irhamhuma_meta_verify'),
   telegramBotToken: z.string().optional(),
   caregiverTelegramChatId: z.string().optional(),
   escalationTelegramChatId: z.string().optional(),
@@ -225,7 +234,11 @@ export const DEFAULT_CARE_CONFIG: CareConfig = {
   escalationChannel: 'TELEGRAM',
   tier2NudgeAfterMinutes: 3,
   tier3TwilioFallbackAfterMinutes: 5,
+  whatsappProvider: 'TWILIO',
   twilioWhatsappNumber: '',
+  metaPhoneNumberId: '',
+  metaAccessToken: '',
+  metaVerifyToken: 'irhamhuma_meta_verify',
   telegramBotToken: '',
   caregiverTelegramChatId: '',
   escalationTelegramChatId: '',

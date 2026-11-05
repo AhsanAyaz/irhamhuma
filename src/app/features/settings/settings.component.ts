@@ -5,6 +5,7 @@ import {
   EscalationChannel,
   NotificationChannel,
   TtsEngine,
+  WhatsAppProvider,
 } from '../../core/models/care.models';
 
 @Component({
@@ -176,9 +177,23 @@ import {
                 </select>
               </div>
 
-              <div class="sm:col-span-2">
+              <div>
+                <label for="whatsappProvider" class="block text-xs font-semibold text-slate-700">
+                  WhatsApp Provider
+                </label>
+                <select
+                  id="whatsappProvider"
+                  formControlName="whatsappProvider"
+                  class="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none"
+                >
+                  <option value="META_CLOUD_API">Meta Direct WhatsApp Cloud API ($0.00 Free • No $20 Prepay)</option>
+                  <option value="TWILIO">Twilio WhatsApp ($0.005/msg • Requires $20 Min Prepay)</option>
+                </select>
+              </div>
+
+              <div>
                 <label for="twilioWhatsappNumber" class="block text-xs font-semibold text-slate-700">
-                  Twilio WhatsApp Sender Number
+                  Twilio WhatsApp Sender Number (If using Twilio)
                 </label>
                 <input
                   id="twilioWhatsappNumber"
@@ -187,10 +202,60 @@ import {
                   placeholder="+10000000000"
                   class="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 font-mono text-sm text-slate-900 focus:border-emerald-500 focus:outline-none"
                 />
-                <p class="mt-1 text-xs text-slate-600">
-                  📌 <strong>Incoming WhatsApp Webhook URL (Twilio Console -> Messaging -> Senders -> WhatsApp senders):</strong><br />
-                  <code class="select-all rounded bg-slate-100 px-1.5 py-0.5 font-bold text-emerald-800">{{ webhookUrlPreview }}</code>
-                </p>
+              </div>
+            </div>
+
+            <!-- Meta Direct WhatsApp Cloud API ($0.00 Free • No $20 Prepay) -->
+            <div class="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4">
+              <h3 class="text-xs font-bold tracking-wider text-emerald-800 uppercase">
+                💬 Meta Direct WhatsApp Cloud API ($0.00 Free • Native 1-Tap Reply Buttons • No $20 Minimum)
+              </h3>
+              <p class="mt-1 text-xs text-slate-600">
+                📌 <strong>Meta Webhook Callback URL:</strong>
+                <code class="ml-1 select-all rounded bg-white px-1.5 py-0.5 font-bold text-emerald-800">{{ metaWebhookUrlPreview }}</code>
+                • <strong>Verify Token:</strong>
+                <code class="ml-1 select-all rounded bg-white px-1.5 py-0.5 font-bold text-emerald-800">{{ settingsForm.controls.metaVerifyToken.value }}</code>
+              </p>
+
+              <div class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                  <label for="metaPhoneNumberId" class="block text-xs font-semibold text-slate-700">
+                    Meta Phone Number ID
+                  </label>
+                  <input
+                    id="metaPhoneNumberId"
+                    type="text"
+                    formControlName="metaPhoneNumberId"
+                    placeholder="e.g. 102938475610293"
+                    class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 font-mono text-sm text-slate-900 focus:border-emerald-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label for="metaAccessToken" class="block text-xs font-semibold text-slate-700">
+                    Meta WhatsApp Access Token
+                  </label>
+                  <input
+                    id="metaAccessToken"
+                    type="password"
+                    formControlName="metaAccessToken"
+                    placeholder="EAAG..."
+                    class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 font-mono text-sm text-slate-900 focus:border-emerald-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label for="metaVerifyToken" class="block text-xs font-semibold text-slate-700">
+                    Webhook Verify Token
+                  </label>
+                  <input
+                    id="metaVerifyToken"
+                    type="text"
+                    formControlName="metaVerifyToken"
+                    placeholder="irhamhuma_meta_verify"
+                    class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 font-mono text-sm text-slate-900 focus:border-emerald-500 focus:outline-none"
+                  />
+                </div>
               </div>
             </div>
 
@@ -396,6 +461,10 @@ export class SettingsComponent {
     typeof window !== 'undefined'
       ? `${window.location.origin}/twiml/whatsapp-webhook`
       : '/twiml/whatsapp-webhook';
+  readonly metaWebhookUrlPreview =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/twiml/meta-whatsapp-webhook`
+      : '/twiml/meta-whatsapp-webhook';
 
   readonly settingsForm = this.fb.nonNullable.group({
     patientTitle: [this.careState.config().patientTitle, [Validators.required]],
@@ -423,7 +492,15 @@ export class SettingsComponent {
     ],
     tier2NudgeAfterMinutes: [this.careState.config().tier2NudgeAfterMinutes],
     tier3TwilioFallbackAfterMinutes: [this.careState.config().tier3TwilioFallbackAfterMinutes],
+    whatsappProvider: [
+      (this.careState.config().whatsappProvider || 'TWILIO') as WhatsAppProvider,
+    ],
     twilioWhatsappNumber: [this.careState.config().twilioWhatsappNumber || ''],
+    metaPhoneNumberId: [this.careState.config().metaPhoneNumberId ?? ''],
+    metaAccessToken: [this.careState.config().metaAccessToken ?? ''],
+    metaVerifyToken: [
+      this.careState.config().metaVerifyToken || 'irhamhuma_meta_verify',
+    ],
     telegramBotToken: [this.careState.config().telegramBotToken ?? ''],
     caregiverTelegramChatId: [this.careState.config().caregiverTelegramChatId ?? ''],
     escalationTelegramChatId: [this.careState.config().escalationTelegramChatId ?? ''],
@@ -457,7 +534,11 @@ export class SettingsComponent {
           escalationChannel: (cfg.escalationChannel || 'TELEGRAM') as EscalationChannel,
           tier2NudgeAfterMinutes: cfg.tier2NudgeAfterMinutes,
           tier3TwilioFallbackAfterMinutes: cfg.tier3TwilioFallbackAfterMinutes,
+          whatsappProvider: (cfg.whatsappProvider || 'TWILIO') as WhatsAppProvider,
           twilioWhatsappNumber: cfg.twilioWhatsappNumber || '',
+          metaPhoneNumberId: cfg.metaPhoneNumberId ?? '',
+          metaAccessToken: cfg.metaAccessToken ?? '',
+          metaVerifyToken: cfg.metaVerifyToken || 'irhamhuma_meta_verify',
           telegramBotToken: cfg.telegramBotToken ?? '',
           caregiverTelegramChatId: cfg.caregiverTelegramChatId ?? '',
           escalationTelegramChatId: cfg.escalationTelegramChatId ?? '',
@@ -493,7 +574,11 @@ export class SettingsComponent {
       escalationChannel: raw.escalationChannel,
       tier2NudgeAfterMinutes: Number(raw.tier2NudgeAfterMinutes),
       tier3TwilioFallbackAfterMinutes: Number(raw.tier3TwilioFallbackAfterMinutes),
+      whatsappProvider: raw.whatsappProvider,
       twilioWhatsappNumber: raw.twilioWhatsappNumber,
+      metaPhoneNumberId: raw.metaPhoneNumberId,
+      metaAccessToken: raw.metaAccessToken,
+      metaVerifyToken: raw.metaVerifyToken || 'irhamhuma_meta_verify',
       telegramBotToken: raw.telegramBotToken,
       caregiverTelegramChatId: raw.caregiverTelegramChatId,
       escalationTelegramChatId: raw.escalationTelegramChatId,

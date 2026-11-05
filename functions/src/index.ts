@@ -25,8 +25,10 @@ import {
 } from './scheduler';
 import {
   handleIncomingWhatsAppWebhook,
+  handleMetaWhatsAppWebhookPost,
   sendCompletionWhatsAppToEscalation,
   sendTier1WhatsAppToCaregiver,
+  verifyMetaWhatsAppWebhookGet,
 } from './whatsapp-service';
 import {
   ensureTelegramWebhookRegistered,
@@ -358,6 +360,20 @@ export const twimlRouter = onRequest({ cors: true }, async (req, res) => {
         res.status(403).json({ ok: false, error: 'Forbidden: Invalid Telegram Webhook Secret or Sender' });
         return;
       }
+      res.status(200).json({ ok: true });
+      return;
+    }
+
+    // Direct Meta WhatsApp Cloud API Webhook (GET verification + POST incoming replies/buttons)
+    if (path.endsWith('/meta-whatsapp-webhook')) {
+      if (req.method === 'GET') {
+        const result = await verifyMetaWhatsAppWebhookGet(
+          (req.query || {}) as Record<string, unknown>
+        );
+        res.status(result.status).send(result.body);
+        return;
+      }
+      await handleMetaWhatsAppWebhookPost((req.body || {}) as Record<string, unknown>);
       res.status(200).json({ ok: true });
       return;
     }

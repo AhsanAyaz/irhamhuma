@@ -24,6 +24,10 @@ export const EscalationChannelSchema = z
   .enum(['TELEGRAM', 'WHATSAPP', 'BOTH'])
   .catch('TELEGRAM');
 
+export const WhatsAppProviderSchema = z
+  .enum(['META_CLOUD_API', 'TWILIO'])
+  .catch('TWILIO');
+
 export const CareConfigSchema = z.object({
   appName: z.string().default('Irhamhuma'),
   patientTitle: z.string().default('Patient'),
@@ -48,7 +52,11 @@ export const CareConfigSchema = z.object({
   escalationChannel: EscalationChannelSchema.default('TELEGRAM'),
   tier2NudgeAfterMinutes: z.number().int().default(3),
   tier3TwilioFallbackAfterMinutes: z.number().int().default(5),
+  whatsappProvider: WhatsAppProviderSchema.default('TWILIO'),
   twilioWhatsappNumber: z.string().default(''),
+  metaPhoneNumberId: z.string().optional(),
+  metaAccessToken: z.string().optional(),
+  metaVerifyToken: z.string().default('irhamhuma_meta_verify'),
   telegramBotToken: z.string().optional(),
   caregiverTelegramChatId: z.string().optional(),
   escalationTelegramChatId: z.string().optional(),
