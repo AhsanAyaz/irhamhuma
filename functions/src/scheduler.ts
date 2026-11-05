@@ -343,7 +343,12 @@ export async function processDueDailyTasks(): Promise<number> {
           sendTier1TelegramAlertToCaregiver(docSnap.id, task, config),
         ]);
       } else {
-        await sendTier1WhatsAppToCaregiver(docSnap.id, task, config);
+        const waRes = await sendTier1WhatsAppToCaregiver(docSnap.id, task, config);
+        if (!waRes.sent) {
+          await docSnap.ref.update({
+            tier1DeliveryError: waRes.details,
+          });
+        }
       }
       triggeredCount++;
       break; // Max 1 task notification per tick so multiple alerts never fire simultaneously
@@ -364,13 +369,33 @@ export async function processDueDailyTasks(): Promise<number> {
     const elapsedMinutes = (nowMs - startedMs) / 60_000;
 
     if (elapsedMinutes >= config.tier3TwilioFallbackAfterMinutes) {
+      if (!config.enableTwilioCalls) {
+        // Twilio calls disabled: Escalate via $0 Telegram / WhatsApp message only (zero phone calls!)
+        await docSnap.ref.update({
+          status: 'ESCALATED',
+          escalationReason: 'NO_ANSWER',
+          updatedAt: nowIso,
+        });
+        await sendTier2WhatsAppNudgeToSon(
+          docSnap.id,
+          { ...task, escalationReason: 'NO_ANSWER' },
+          config
+        );
+        triggeredCount++;
+        continue;
+      }
+
       const nextAttempt = ((task.attemptCount as number) || 0) + 1;
       await docSnap.ref.update({
         status: 'CALLING_CAREGIVER',
         attemptCount: nextAttempt,
         updatedAt: nowIso,
       });
-      await placeOutboundCall(docSnap.id, 'CAREGIVER');
+      try {
+        await placeOutboundCall(docSnap.id, 'CAREGIVER');
+      } catch {
+        // Prevent scheduler crash if Twilio is out of credits or unreachable
+      }
       triggeredCount++;
     }
   }

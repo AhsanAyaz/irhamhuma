@@ -225,15 +225,25 @@ export async function sendTier2TelegramNudgeToSon(
 
   const title = String(task.title || 'Care Task');
   const reason = String(task.escalationReason || 'NO_ANSWER');
+  const deliveryError = String(task.tier1DeliveryError || '');
   const reasonLine =
     reason === 'PATIENT_REFUSING'
       ? `*${config.caregiverTitle}* reported that *${config.patientTitle}* is refusing *${title}*.`
-      : `*${config.caregiverTitle}* has not confirmed *${title}* for *${config.patientTitle}* after 2 call attempts.`;
+      : config.enableTwilioCalls
+        ? `*${config.caregiverTitle}* has not confirmed *${title}* for *${config.patientTitle}* after 2 call attempts.`
+        : `*${config.caregiverTitle}* has not confirmed *${title}* for *${config.patientTitle}* yet.`;
+
+  const deliveryWarning = deliveryError
+    ? `\n⚠️ *WhatsApp Delivery Issue*: ${deliveryError}`
+    : '';
+  const actionFooter = config.enableTwilioCalls
+    ? `📞 Calling your phone now (or tap an action below):`
+    : `💬 Tap an action below (Twilio voice calls are disabled):`;
 
   const text =
     `🚨 *Irhamhuma Escalation Alert*\n\n` +
-    `${reasonLine}\n` +
-    `📞 Calling your phone now (or tap an action below):`;
+    `${reasonLine}${deliveryWarning}\n` +
+    `${actionFooter}`;
 
   try {
     const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {

@@ -89,22 +89,60 @@ import {
               </label>
             </div>
 
-            <div class="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
-              <label class="flex cursor-pointer items-start gap-3">
-                <input
-                  type="checkbox"
-                  formControlName="notifyEscalationOnCompletion"
-                  class="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600"
-                />
-                <div>
-                  <span class="block text-xs font-bold text-slate-900">
-                    Notify {{ settingsForm.controls.escalationName.value }} when {{ settingsForm.controls.caregiverTitle.value }} marks a task Done
-                  </span>
-                  <span class="mt-0.5 block text-xs text-slate-600">
-                    Sends a short text-only confirmation (no audio) via Telegram ($0.00, no 24h window limit) or WhatsApp whenever a meal or medicine is confirmed by {{ settingsForm.controls.caregiverTitle.value }}.
-                  </span>
-                </div>
-              </label>
+            <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div class="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
+                <label class="flex cursor-pointer items-start gap-3">
+                  <input
+                    type="checkbox"
+                    formControlName="notifyEscalationOnCompletion"
+                    class="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600"
+                  />
+                  <div>
+                    <span class="block text-xs font-bold text-slate-900">
+                      Notify {{ settingsForm.controls.escalationName.value }} on Done
+                    </span>
+                    <span class="mt-0.5 block text-xs text-slate-600">
+                      Sends a short text-only confirmation via Telegram ($0.00) whenever a task is confirmed by {{ settingsForm.controls.caregiverTitle.value }}.
+                    </span>
+                  </div>
+                </label>
+              </div>
+
+              <div class="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5">
+                <label class="flex cursor-pointer items-start gap-3">
+                  <input
+                    type="checkbox"
+                    formControlName="enableWhatsAppAudioNote"
+                    class="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600"
+                  />
+                  <div>
+                    <span class="block text-xs font-bold text-slate-900">
+                      🔊 Attach Urdu MP3 on WhatsApp
+                    </span>
+                    <span class="mt-0.5 block text-xs text-slate-600">
+                      Uncheck to send 1 single text message per reminder ($0.005/msg) instead of a 2nd MP3 audio message (cuts WhatsApp cost in half).
+                    </span>
+                  </div>
+                </label>
+              </div>
+
+              <div class="rounded-xl border border-amber-200 bg-amber-50/60 p-3.5">
+                <label class="flex cursor-pointer items-start gap-3">
+                  <input
+                    type="checkbox"
+                    formControlName="enableTwilioCalls"
+                    class="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600"
+                  />
+                  <div>
+                    <span class="block text-xs font-bold text-slate-900">
+                      📞 Enable Outbound Twilio Calls
+                    </span>
+                    <span class="mt-0.5 block text-xs text-slate-600">
+                      Uncheck to disable paid PSTN phone calls ($0 voice spend). Uses WhatsApp / Telegram messages only.
+                    </span>
+                  </div>
+                </label>
+              </div>
             </div>
 
             <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -374,6 +412,8 @@ export class SettingsComponent {
     geminiVoiceName: [this.careState.config().geminiVoiceName],
     geminiApiKey: [this.careState.config().geminiApiKey ?? ''],
     enableCostSaverCascade: [this.careState.config().enableCostSaverCascade],
+    enableTwilioCalls: [this.careState.config().enableTwilioCalls ?? false],
+    enableWhatsAppAudioNote: [this.careState.config().enableWhatsAppAudioNote ?? false],
     notifyEscalationOnCompletion: [this.careState.config().notifyEscalationOnCompletion ?? true],
     caregiverChannel: [
       (this.careState.config().caregiverChannel || 'WHATSAPP') as NotificationChannel,
@@ -410,6 +450,8 @@ export class SettingsComponent {
           geminiVoiceName: cfg.geminiVoiceName,
           geminiApiKey: cfg.geminiApiKey ?? '',
           enableCostSaverCascade: cfg.enableCostSaverCascade,
+          enableTwilioCalls: cfg.enableTwilioCalls ?? false,
+          enableWhatsAppAudioNote: cfg.enableWhatsAppAudioNote ?? false,
           notifyEscalationOnCompletion: cfg.notifyEscalationOnCompletion ?? true,
           caregiverChannel: (cfg.caregiverChannel || 'WHATSAPP') as NotificationChannel,
           escalationChannel: (cfg.escalationChannel || 'TELEGRAM') as EscalationChannel,
@@ -444,6 +486,8 @@ export class SettingsComponent {
       geminiVoiceName: raw.geminiVoiceName,
       geminiApiKey: raw.geminiApiKey,
       enableCostSaverCascade: Boolean(raw.enableCostSaverCascade),
+      enableTwilioCalls: Boolean(raw.enableTwilioCalls),
+      enableWhatsAppAudioNote: Boolean(raw.enableWhatsAppAudioNote),
       notifyEscalationOnCompletion: Boolean(raw.notifyEscalationOnCompletion),
       caregiverChannel: raw.caregiverChannel,
       escalationChannel: raw.escalationChannel,

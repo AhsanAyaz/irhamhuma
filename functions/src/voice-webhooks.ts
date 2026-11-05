@@ -150,9 +150,12 @@ export async function buildUrduAudioMp3ForTwilio(
 export async function placeOutboundCall(
   taskId: string,
   targetRole: 'CAREGIVER' | 'ESCALATION',
-  options?: { forceCellular?: boolean }
+  options?: { forceCellular?: boolean; forceEvenIfDisabled?: boolean }
 ): Promise<string> {
   const config = await getCareConfig();
+  if (!config.enableTwilioCalls && !options?.forceEvenIfDisabled) {
+    return 'TWILIO_CALLS_DISABLED';
+  }
   const client = getTwilioClient();
   const baseUrl = getBaseRouterUrl();
   const fromPhone = (

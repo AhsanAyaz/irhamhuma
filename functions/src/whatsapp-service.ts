@@ -58,24 +58,26 @@ export async function sendTier1WhatsAppToCaregiver(
     `*3* — 🚨 ${config.patientTitle} منع کر رہے ہیں، ${config.escalationName} کو کال کریں`;
 
   try {
-    // 1. Send the written summary message FIRST (WhatsApp strips text captions from audio media messages!)
+    // 1. Send the written summary message
     const textMsg = await client.messages.create({
       from: fromWhatsApp,
       to: toWhatsApp,
       body: bodyText,
     });
 
-    // 2. Send the Native Urdu MP3 Voice Note right after it
+    // 2. Optionally send the Native Urdu MP3 Voice Note (only if enableWhatsAppAudioNote is enabled)
     let audioSid = '';
-    try {
-      const audioMsg = await client.messages.create({
-        from: fromWhatsApp,
-        to: toWhatsApp,
-        mediaUrl: [audioMediaUrl],
-      });
-      audioSid = audioMsg.sid;
-    } catch {
-      // If media attachment fails, the written summary message was already delivered
+    if (config.enableWhatsAppAudioNote) {
+      try {
+        const audioMsg = await client.messages.create({
+          from: fromWhatsApp,
+          to: toWhatsApp,
+          mediaUrl: [audioMediaUrl],
+        });
+        audioSid = audioMsg.sid;
+      } catch {
+        // If media attachment fails, the written summary message was already delivered
+      }
     }
 
     await admin.firestore().doc(`dailyTasks/${taskId}`).set(

@@ -41,6 +41,8 @@ export const CareConfigSchema = z.object({
   voiceName: UrduVoiceNameSchema.default('ur-PK-Standard-A'),
   geminiVoiceName: z.string().default('Kore'),
   enableCostSaverCascade: z.boolean().default(true),
+  enableTwilioCalls: z.boolean().default(false),
+  enableWhatsAppAudioNote: z.boolean().default(false),
   notifyEscalationOnCompletion: z.boolean().default(true),
   caregiverChannel: NotificationChannelSchema.default('WHATSAPP'),
   escalationChannel: EscalationChannelSchema.default('TELEGRAM'),
