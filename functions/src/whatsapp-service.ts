@@ -5,6 +5,7 @@ import {
   sendCompletionTelegramToEscalation,
   sendTier2TelegramNudgeToSon,
 } from './telegram-service';
+import { getPakistanDateKey } from './scheduler';
 import { getBaseRouterUrl, getCareConfig, placeOutboundCall } from './voice-webhooks';
 
 function getTwilioClient() {
@@ -452,9 +453,12 @@ export async function handleIncomingWhatsAppWebhook(
     return twiml.toString();
   }
 
-  // Priority 1: Find the most recently notified/active task (NOT future SCHEDULED tasks like Dinner!)
+  const pktDateKey = getPakistanDateKey();
+
+  // Priority 1: Find the most recently notified/active task for TODAY in Pakistan time
   const activeSnap = await db
     .collection('dailyTasks')
+    .where('dateKey', '==', pktDateKey)
     .where('status', 'in', [
       'TIER1_NOTIFYING',
       'TIER2_NUDGING_SON',
@@ -471,11 +475,12 @@ export async function handleIncomingWhatsAppWebhook(
     return tB.localeCompare(tA);
   });
 
-  // Priority 2 (Fallback): If no task is currently in an active notifying state, pick the earliest due SCHEDULED task
+  // Priority 2 (Fallback): If no task is currently in an active notifying state today, pick the earliest due SCHEDULED task for today
   if (docs.length === 0) {
     const nowIso = new Date().toISOString();
     const schedSnap = await db
       .collection('dailyTasks')
+      .where('dateKey', '==', pktDateKey)
       .where('status', '==', 'SCHEDULED')
       .get();
     docs = schedSnap.docs
@@ -488,8 +493,18 @@ export async function handleIncomingWhatsAppWebhook(
 
   const targetDoc = docs[0];
   if (!targetDoc) {
+    // Notify Escalation Contact on Telegram that Caregiver replied and opened the 24h Meta WhatsApp window
+    if (config.notifyEscalationOnCompletion) {
+      await sendCompletionTelegramToEscalation(
+        { title: 'WhatsApp 24h Window Activated' },
+        `${config.caregiverTitle} (${fromRaw} replied "${rawText}")`,
+        [],
+        config
+      );
+    }
+
     twiml.message(
-      `🤲 السلام علیکم! اس وقت ${config.patientTitle} کی کوئی دوائی یا کھانا زیرِ التواء نہیں ہے۔ الحمد للہ!`
+      `🤲 جزاک اللہ ${config.caregiverTitle}! ${config.escalationName} کا نیا واٹس ایپ ریمائنڈر نمبر کامیابی سے چالو ہو گیا ہے۔ ان شاء اللہ آج کے وقت پر ${config.patientTitle} کی دوائیوں اور کھانے کی یاد دہانی اسی نمبر سے آئے گی! ❤️`
     );
     return twiml.toString();
   }
