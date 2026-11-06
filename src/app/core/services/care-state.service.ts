@@ -1079,11 +1079,26 @@ export class CareStateService {
       .replace(/2 دبائیں/g, '2 لکھ کر بھیجیں')
       .replace(/3 دبائیں/g, '3 لکھ کر بھیجیں')
       .replace(/3 دبا کر/g, '3 لکھ کر')
+      .replace(/کال جائے/g, 'فوری اطلاع مل جائے')
+      .replace(/کال کی جا سکے/g, 'فوری اطلاع دی جا سکے')
+      .replace(/کال کریں/g, 'فوری اطلاع دیں')
+      .replace(/تاکہ احسن سے بات کی جا سکے/g, 'تاکہ احسن کو فوری اطلاع مل جائے')
+      .replace(/تاکہ احسن سے بات ہو سکے/g, 'تاکہ احسن کو فوری اطلاع مل جائے')
+      .replace(/toh 1 dabayen/gi, 'toh jawab mein 1 likh kar bhejein')
       .replace(/to 1 dabayein/gi, 'to jawab mein 1 likh kar bhejein')
+      .replace(/1 dabayen/gi, '1 likh kar bhejein')
+      .replace(/2 dabayen/gi, '2 likh kar bhejein')
+      .replace(/3 dabayen/gi, '3 likh kar bhejein')
       .replace(/1 dabayein/gi, '1 likh kar bhejein')
       .replace(/2 dabayein/gi, '2 likh kar bhejein')
       .replace(/3 dabayein/gi, '3 likh kar bhejein')
-      .replace(/3 daba kar/gi, '3 likh kar bhejein taake');
+      .replace(/3 daba kar/gi, '3 likh kar bhejein taake')
+      .replace(/taake Ahsan se baat ki ja sake/gi, 'taake Ahsan ko fori ittila mil jaye')
+      .replace(/taake Ahsan se baat ho sake/gi, 'taake Ahsan ko fori ittila mil jaye')
+      .replace(/call jaye/gi, 'fori ittila mil jaye')
+      .replace(/call ki ja sakay/gi, 'fori ittila di ja sakay')
+      .replace(/call ki ja sake/gi, 'fori ittila di ja sakay')
+      .replace(/call karein/gi, 'fori ittila dein');
   }
 
   private addMinutesToNowDisplay(minutes: number): string {

@@ -49,7 +49,7 @@ CRITICAL RULES:
 4. Every 'urduScript' and 'urduScriptNative' MUST remind "${config.caregiverTitle}" using WhatsApp reply phrasing ("likh kar bhejein" / "لکھ کر بھیجیں", NOT "dabayein" / "دبائیں"):
    - Reply 1 ("جواب میں 1 لکھ کر بھیجیں" / "jawab mein 1 likh kar bhejein") when "${config.patientTitle}" has completed/taken it
    - Reply 2 ("2 لکھ کر بھیجیں" / "2 likh kar bhejein") to snooze for ${config.snoozeDurationMinutes} minutes
-   - Reply 3 ("3 لکھ کر بھیجیں" / "3 likh kar bhejein") if "${config.patientTitle}" is refusing so "${config.escalationName}" can be called immediately.
+   - Reply 3 ("3 لکھ کر بھیجیں" / "3 likh kar bhejein") if "${config.patientTitle}" is refusing so "${config.escalationName}" is immediately notified ("تاکہ ${config.escalationName} کو فوری اطلاع مل جائے" / "taake ${config.escalationName} ko fori ittila mil jaye").
 5. Every 'escalationScript' MUST address "${config.escalationName}" and offer: Press 1 if handled, Press 2 to re-call "${config.caregiverTitle}" in ${config.snoozeDurationMinutes}m, or Press 9 to live-bridge the call to "${config.caregiverTitle}" and "${config.patientTitle}".`;
 
       const contentsParts: Array<{ text: string } | { inlineData: { data: string; mimeType: string } }> = [

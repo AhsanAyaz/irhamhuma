@@ -201,10 +201,16 @@ export async function sendTier1WhatsAppToCaregiver(
 
   const title = String(task.title || 'دوائی');
   const instructions = String(task.instructions || '');
-  const urduNative = String(
+  const rawUrduNative = String(
     task.urduScriptNative ||
       `السلام علیکم ${config.caregiverTitle}! ابھی ${config.patientTitle} کے ${title} کا وقت ہو گیا ہے۔`
   );
+  const urduNative = config.enableTwilioCalls
+    ? rawUrduNative
+    : rawUrduNative
+        .replace(/کال جائے/g, 'فوری اطلاع مل جائے')
+        .replace(/کال کی جا سکے/g, 'فوری اطلاع دی جا سکے')
+        .replace(/کال کریں/g, 'فوری اطلاع دیں');
 
   // Append .mp3 and type=whatsapp so the voice note says "1 likh kar bhejein"
   const audioMediaUrl = `${baseUrl}/audio.mp3?taskId=${encodeURIComponent(taskId)}&type=whatsapp`;
@@ -619,9 +625,10 @@ export async function handleIncomingWhatsAppWebhook(
     await sendTier2WhatsAppNudgeToSon(taskId, task, config);
     await placeOutboundCall(taskId, 'ESCALATION');
 
-    twiml.message(
-      `🚨 پریشان نہ ہوں ${config.caregiverTitle}، ابھی ${config.escalationName} کو کال جا رہی ہے تاکہ وہ ${config.patientTitle} سے بات کر سکیں!`
-    );
+    const escReply = config.enableTwilioCalls
+      ? `🚨 پریشان نہ ہوں ${config.caregiverTitle}، ابھی ${config.escalationName} کو کال جا رہی ہے تاکہ وہ ${config.patientTitle} سے بات کر سکیں!`
+      : `🚨 پریشان نہ ہوں ${config.caregiverTitle}، ${config.escalationName} کو فوری اطلاع بھیج دی گئی ہے، وہ ابھی آپ سے رابطہ کریں گے!`;
+    twiml.message(escReply);
     return twiml.toString();
   }
 
@@ -638,11 +645,15 @@ export async function handleIncomingWhatsAppWebhook(
     return twiml.toString();
   }
 
+  const opt3Label = config.enableTwilioCalls
+    ? `${config.escalationName} کو کال کریں`
+    : `${config.escalationName} کو فوری اطلاع دیں`;
+
   twiml.message(
     `🤲 براہ کرم "${taskTitle}" کے لیے صرف ایک نمبر لکھ کر جواب دیں:\n` +
       `*1* — ✅ مکمل ہو گیا (Done)\n` +
       `*2* — ⏳ ${config.snoozeDurationMinutes} منٹ بعد (Snooze)\n` +
-      `*3* — 🚨 ${config.escalationName} کو کال کریں`
+      `*3* — 🚨 ${opt3Label}`
   );
   return twiml.toString();
 }

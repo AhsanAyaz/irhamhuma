@@ -135,6 +135,13 @@ export async function buildUrduAudioMp3ForTwilio(
       .replace(/3 دبا کر/g, '3 لکھ کر');
   }
 
+  if (!config.enableTwilioCalls) {
+    urduText = urduText
+      .replace(/کال جائے/g, 'فوری اطلاع مل جائے')
+      .replace(/کال کی جا سکے/g, 'فوری اطلاع دی جا سکے')
+      .replace(/کال کریں/g, 'فوری اطلاع دیں');
+  }
+
   return synthesizeNativeUrduMp3Buffer(
     urduText,
     voiceOverride || config.voiceName || 'ur-PK-Standard-A'

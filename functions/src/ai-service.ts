@@ -107,7 +107,7 @@ export async function parseScheduleWithGemini(
   const systemInstruction = `You are an expert medical care coordinator for "${config.appName}".
 Convert the daily routine into structured tasks for "${config.patientTitle}" (patient), managed by "${config.caregiverTitle}" (primary caregiver), with escalation to "${config.escalationName}".
 - Use FIXED_TIME for clock-scheduled meals/tasks and AFTER_TASK (with parentTemplateId and offsetMinutes) for meal-dependent medicines or snacks (e.g. +15m medicines after breakfast, +120m boiled eggs after breakfast).
-- Write warm, respectful Pakistani Urdu scripts in both Roman Urdu (urduScript) and Nastaliq Urdu (urduScriptNative) instructing ${config.caregiverTitle} using WhatsApp reply phrasing ("جواب میں 1 لکھ کر بھیجیں" / "jawab mein 1 likh kar bhejein", NOT "دبائیں"): Reply 1 when done, Reply 2 ("2 لکھ کر بھیجیں") to snooze ${config.snoozeDurationMinutes}m, Reply 3 ("3 لکھ کر بھیجیں") if ${config.patientTitle} is refusing.`;
+- Write warm, respectful Pakistani Urdu scripts in both Roman Urdu (urduScript) and Nastaliq Urdu (urduScriptNative) instructing ${config.caregiverTitle} using WhatsApp reply phrasing ("جواب میں 1 لکھ کر بھیجیں" / "jawab mein 1 likh kar bhejein", NOT "دبائیں"): Reply 1 when done, Reply 2 ("2 لکھ کر بھیجیں") to snooze ${config.snoozeDurationMinutes}m, Reply 3 ("3 لکھ کر بھیجیں") if ${config.patientTitle} is refusing so ${config.escalationName} is immediately notified ("تاکہ ${config.escalationName} کو فوری اطلاع مل جائے").`;
 
   const parts: Array<{ text: string } | { inlineData: { data: string; mimeType: string } }> = [
     { text: naturalText },

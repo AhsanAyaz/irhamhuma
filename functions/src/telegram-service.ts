@@ -245,6 +245,27 @@ export async function sendTier2TelegramNudgeToSon(
     `${reasonLine}${deliveryWarning}\n` +
     `${actionFooter}`;
 
+  const inlineKeyboard: Array<Array<{ text: string; callback_data: string }>> = [
+    [
+      {
+        text: '✅ Mark Done',
+        callback_data: `DONE:${taskId}`,
+      },
+      {
+        text: `⏳ Snooze ${config.snoozeDurationMinutes}m`,
+        callback_data: `SNOOZE:${taskId}`,
+      },
+    ],
+  ];
+  if (config.enableTwilioCalls) {
+    inlineKeyboard.push([
+      {
+        text: `📲 Call ${config.caregiverTitle} Now`,
+        callback_data: `TWILIO_NOW:${taskId}`,
+      },
+    ]);
+  }
+
   try {
     const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
@@ -254,24 +275,7 @@ export async function sendTier2TelegramNudgeToSon(
         text,
         parse_mode: 'Markdown',
         reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: '✅ Mark Done',
-                callback_data: `DONE:${taskId}`,
-              },
-            ],
-            [
-              {
-                text: `⏳ Snooze ${config.snoozeDurationMinutes}m`,
-                callback_data: `SNOOZE:${taskId}`,
-              },
-              {
-                text: `📲 Call ${config.caregiverTitle} Now`,
-                callback_data: `TWILIO_NOW:${taskId}`,
-              },
-            ],
-          ],
+          inline_keyboard: inlineKeyboard,
         },
       }),
     });
@@ -418,7 +422,9 @@ export async function handleTelegramBotWebhook(
     });
     await sendTier2TelegramNudgeToSon(taskId, task, config);
     await placeOutboundCall(taskId, 'ESCALATION');
-    feedbackText = `🚨 پریشان نہ ہوں ${config.caregiverTitle}، ابھی ${config.escalationName} کو کال جا رہی ہے!`;
+    feedbackText = config.enableTwilioCalls
+      ? `🚨 پریشان نہ ہوں ${config.caregiverTitle}، ابھی ${config.escalationName} کو کال جا رہی ہے!`
+      : `🚨 پریشان نہ ہوں ${config.caregiverTitle}، ${config.escalationName} کو فوری اطلاع بھیج دی گئی ہے!`;
   } else if (action === 'TWILIO_NOW') {
     await taskRef.update({
       status: 'CALLING_CAREGIVER',
