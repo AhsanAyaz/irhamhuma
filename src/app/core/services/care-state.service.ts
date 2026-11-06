@@ -991,8 +991,10 @@ export class CareStateService {
                 ...data.config,
                 geminiApiKey: this.config().geminiApiKey || data.config.geminiApiKey || '',
               });
-              this.config.set(mergedCfg);
-              this.saveToStorage(STORAGE_KEYS.CONFIG, mergedCfg);
+              if (JSON.stringify(this.config()) !== JSON.stringify(mergedCfg)) {
+                this.config.set(mergedCfg);
+                this.saveToStorage(STORAGE_KEYS.CONFIG, mergedCfg);
+              }
             } catch {
               // Keep local config if parse fails
             }

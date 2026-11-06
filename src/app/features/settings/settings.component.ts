@@ -511,6 +511,10 @@ export class SettingsComponent {
   constructor() {
     effect(() => {
       const cfg = this.careState.config();
+      // Never overwrite form fields while the user is actively typing/editing in Settings
+      if (this.settingsForm.dirty) {
+        return;
+      }
       this.settingsForm.patchValue(
         {
           patientTitle: cfg.patientTitle,
@@ -585,6 +589,7 @@ export class SettingsComponent {
       caregiverTelegramUsername: raw.caregiverTelegramUsername,
       enableCallMeBotVoiceCall: Boolean(raw.enableCallMeBotVoiceCall),
     });
+    this.settingsForm.markAsPristine();
     this.savedBanner.set(true);
     setTimeout(() => this.savedBanner.set(false), 3000);
   }
