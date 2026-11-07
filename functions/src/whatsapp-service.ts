@@ -688,6 +688,88 @@ export async function handleMetaWhatsAppWebhookPost(
     const changes = (entry.changes as Array<Record<string, unknown>>) || [];
     for (const change of changes) {
       const value = (change.value as Record<string, unknown>) || {};
+
+      // 1. Track Meta WhatsApp delivery status callbacks (sent, delivered, read, failed)
+      const statuses = (value.statuses as Array<Record<string, unknown>>) || [];
+      for (const st of statuses) {
+        const wamid = String(st.id || '').trim();
+        const statusVal = String(st.status || '').trim();
+        const errors = (st.errors as Array<{ code?: number; title?: string; message?: string; error_data?: { details?: string } }>) || [];
+        const errDetail = errors[0]
+          ? `${errors[0].code || ''} ${errors[0].title || ''}: ${errors[0].error_data?.details || errors[0].message || ''}`.trim()
+          : '';
+        if (wamid && statusVal) {
+          console.log(`[MetaWebhookStatus] wamid=${wamid} status=${statusVal}${errDetail ? ` error=${errDetail}` : ''}`);
+          const pktDateKey = getPakistanDateKey();
+          const taskSnap = await admin
+            .firestore()
+            .collection('dailyTasks')
+            .where('dateKey', '==', pktDateKey)
+            .where('lastWhatsAppSid', '==', wamid)
+            .limit(1)
+            .get();
+          if (!taskSnap.empty) {
+            const taskDoc = taskSnap.docs[0];
+            const taskData = taskDoc.data();
+            const updateData: Record<string, unknown> = {
+              lastWhatsAppDeliveryStatus: statusVal,
+              lastWhatsAppStatusAt: new Date().toISOString(),
+            };
+            if (statusVal === 'failed' && errDetail) {
+              updateData.tier1DeliveryError = errDetail;
+
+              // If Meta rejected the free-form interactive message because the 24h customer service window is closed (code 131047),
+              // automatically send the pre-approved `hello_world` template to Caregiver so she receives a WhatsApp ping and can reply to re-open the 24h window!
+              const isReengagementError =
+                errors.some((e) => Number(e.code) === 131047) ||
+                errDetail.toLowerCase().includes('re-engagement') ||
+                errDetail.includes('131047');
+
+              if (isReengagementError && !taskData.templateFallbackSent) {
+                updateData.templateFallbackSent = true;
+                updateData.awaitingWindowReopen = true;
+                const config = await getCareConfig();
+                const { phoneNumberId, accessToken } = getMetaCredentials(config);
+                const recipient = String(taskData.lastWhatsAppSentTo || config.caregiverPhone || '')
+                  .replace(/^whatsapp:/i, '')
+                  .replace(/[^\d]/g, '')
+                  .trim();
+                if (phoneNumberId && accessToken && recipient) {
+                  try {
+                    const tplRes = await fetch(
+                      `https://graph.facebook.com/v21.0/${encodeURIComponent(phoneNumberId)}/messages`,
+                      {
+                        method: 'POST',
+                        headers: {
+                          Authorization: `Bearer ${accessToken}`,
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          messaging_product: 'whatsapp',
+                          to: recipient,
+                          type: 'template',
+                          template: {
+                            name: 'hello_world',
+                            language: { code: 'en_US' },
+                          },
+                        }),
+                      }
+                    );
+                    if (tplRes.ok) {
+                      console.log(`[MetaWebhookStatus] Sent hello_world template fallback to ${recipient} to re-open 24h window.`);
+                    }
+                  } catch {
+                    // Non-blocking
+                  }
+                }
+              }
+            }
+            await taskDoc.ref.update(updateData);
+          }
+        }
+      }
+
+      // 2. Process incoming messages / button replies
       const messages = (value.messages as Array<Record<string, unknown>>) || [];
       for (const msg of messages) {
         const fromDigits = String(msg.from || '').replace(/[^\d]/g, '');
@@ -718,6 +800,24 @@ export async function handleMetaWhatsAppWebhookPost(
         if (replyText) {
           const config = await getCareConfig();
           await sendMetaCloudWhatsAppMessage(fromE164, replyText, config);
+        }
+
+        // If any active task today was blocked by the 24h window (`awaitingWindowReopen: true`) and wasn't just completed by this reply,
+        // immediately re-send its full interactive Urdu reminder + voice note now that the 24h window is open!
+        const pktDateKey = getPakistanDateKey();
+        const blockedSnap = await admin
+          .firestore()
+          .collection('dailyTasks')
+          .where('dateKey', '==', pktDateKey)
+          .where('awaitingWindowReopen', '==', true)
+          .get();
+        for (const bDoc of blockedSnap.docs) {
+          const bData = bDoc.data();
+          await bDoc.ref.update({ awaitingWindowReopen: false });
+          if (bData.status !== 'COMPLETED') {
+            const config = await getCareConfig();
+            await sendTier1WhatsAppToCaregiver(bDoc.id, bData, config);
+          }
         }
       }
     }
