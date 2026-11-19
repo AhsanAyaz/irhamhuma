@@ -21,7 +21,7 @@ import {
         <div class="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
           <div>
             <div class="inline-flex items-center gap-2 rounded-full bg-indigo-500/20 px-3 py-1 text-xs font-semibold text-indigo-300">
-              <span>✨</span> Powered by <code>&#64;google/genai</code> (gemini-2.5-flash) + <code>Zod</code> Structured Outputs
+              <span>✨</span> Powered by <code>&#64;google/genai</code> (gemini-3.5-flash-lite) + <code>Zod</code> Structured Outputs
             </div>
             <h1 class="mt-2 text-2xl font-bold">
               AI Natural Language &amp; Prescription Schedule Builder

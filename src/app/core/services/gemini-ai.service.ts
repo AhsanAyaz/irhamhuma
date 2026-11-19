@@ -17,7 +17,7 @@ export class GeminiAiService {
   /**
    * Parses a natural language care routine or hospital discharge prescription image
    * into a strictly validated schedule with fixed times, meal-chained offsets, and Urdu scripts
-   * using @google/genai (gemini-2.5-flash) + Zod Structured Outputs.
+   * using @google/genai (gemini-3.5-flash-lite) + Zod Structured Outputs.
    */
   async parseScheduleFromInput(
     naturalText: string,
@@ -50,7 +50,8 @@ CRITICAL RULES:
    - Reply 1 ("جواب میں 1 لکھ کر بھیجیں" / "jawab mein 1 likh kar bhejein") when "${config.patientTitle}" has completed/taken it
    - Reply 2 ("2 لکھ کر بھیجیں" / "2 likh kar bhejein") to snooze for ${config.snoozeDurationMinutes} minutes
    - Reply 3 ("3 لکھ کر بھیجیں" / "3 likh kar bhejein") if "${config.patientTitle}" is refusing so "${config.escalationName}" is immediately notified ("تاکہ ${config.escalationName} کو فوری اطلاع مل جائے" / "taake ${config.escalationName} ko fori ittila mil jaye").
-5. Every 'escalationScript' MUST address "${config.escalationName}" and offer: Press 1 if handled, Press 2 to re-call "${config.caregiverTitle}" in ${config.snoozeDurationMinutes}m, or Press 9 to live-bridge the call to "${config.caregiverTitle}" and "${config.patientTitle}".`;
+5. Every 'escalationScript' MUST address "${config.escalationName}" and offer: Press 1 if handled, Press 2 to re-call "${config.caregiverTitle}" in ${config.snoozeDurationMinutes}m, or Press 9 to live-bridge the call to "${config.caregiverTitle}" and "${config.patientTitle}".
+DETERMINISM: Be deterministic and conservative. Given the same input, produce the same output. Do not invent tasks, times, doses, or medicines that are not in the input; follow the stated rules exactly and prefer the most literal interpretation of the routine.`;
 
       const contentsParts: Array<{ text: string } | { inlineData: { data: string; mimeType: string } }> = [
         {
@@ -68,19 +69,18 @@ CRITICAL RULES:
       }
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.5-flash-lite',
         contents: [{ role: 'user', parts: contentsParts }],
         config: {
           systemInstruction,
           responseMimeType: 'application/json',
           responseJsonSchema: jsonSchema,
-          temperature: 0.2,
         },
       });
 
       const rawText = response.text;
       if (!rawText) {
-        throw new Error('Empty response received from Gemini 2.5 Flash.');
+        throw new Error('Empty response received from Gemini 3.5 Flash-Lite.');
       }
 
       // Runtime validation with Zod
